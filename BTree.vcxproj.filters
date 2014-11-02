@@ -1,0 +1,122 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Source Files\tests">
+      <UniqueIdentifier>{1b4f6ff3-057f-4c7b-ac27-deda2b3935d9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Header Files\others">
+      <UniqueIdentifier>{54879470-3371-49fa-98ee-a2e88a1ed4d1}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="btree\btfile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="btree\btfilescan.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="btree\btindex.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="btree\btleaf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="btree\key.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="btree\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="btree\sortedpage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="btree\btreeDriver.cpp">
+      <Filter>Source Files\tests</Filter>
+    </ClCompile>
+    <ClCompile Include="btree\btreetest.cpp">
+      <Filter>Source Files\tests</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\btfile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\btfilescan.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\btindex.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\btleaf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\btreeDriver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\btreetest.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bufmgr.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\catalog.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\clockframe.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\da_types.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\db.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\dirpage.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\frame.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\hash.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\heapfile.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\heappage.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\minirel.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\new_error.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\page.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\replacer.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scan.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sortedpage.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\system_defs.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+    <ClInclude Include="include\tuple.h">
+      <Filter>Header Files\others</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

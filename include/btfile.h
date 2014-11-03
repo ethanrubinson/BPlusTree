@@ -81,8 +81,9 @@ private:
 	Status BTreeFile::_DumpStatistics(PageID);
 	Status BTreeFile::__DumpStatistics(PageID);
 
-	// You may add members and methods here.
+	Status BTreeFile::_DestroyFile(PageID);
 
+	void BTreeFile::debugPrint(const char *msg);
 };
 
 

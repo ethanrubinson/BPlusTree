@@ -5,6 +5,12 @@
 #include "btfile.h"
 #include "btfilescan.h"
 
+const bool DEBUG_MODE = true;
+
+void BTreeFile::debugPrint(const char *msg){
+	if(DEBUG_MODE) std::cout << msg << std::endl;
+}
+
 //-------------------------------------------------------------------
 // BTreeFile::BTreeFile
 //
@@ -106,8 +112,63 @@ BTreeFile::~BTreeFile ()
 //-------------------------------------------------------------------
 Status BTreeFile::DestroyFile ()
 {
-	//TODO: add your code here
-	return FAIL;
+	if (header->GetRootPageID() != INVALID_PAGE && _DestroyFile(header->GetRootPageID()) != OK) {
+		return FAIL;
+	}
+
+	FREEPAGE(headerID);
+	headerID = INVALID_PAGE;
+
+	if (MINIBASE_DB->DeleteFileEntry(dbname) != OK) {
+		debugPrint("[ERROR] MINIBASE_DB->DeleteFileEntry failed in BTreeFile::DestroyFile()");
+		return FAIL;
+	}
+
+	return OK;
+}
+
+Status BTreeFile::_DestroyFile (PageID pageID)
+{
+	SortedPage *page;
+	BTIndexPage *index;
+
+	Status s;
+	PageID curPageID;
+
+	RecordID curRid;
+	KeyType key;
+
+	PIN (pageID, page);
+	NodeType type = page->GetType ();
+
+	switch (type) {
+	case INDEX_NODE:
+		index = (BTIndexPage *)page;
+		curPageID = index->GetLeftLink();
+		if (_DestroyFile(curPageID) != OK) return FAIL;
+
+		s=index->GetFirst(curRid, key, curPageID);
+		if ( s == OK) {	
+			if (_DestroyFile(curPageID) != OK) return FAIL;
+
+			s = index->GetNext(curRid, key, curPageID);
+			while ( s != DONE) {	
+				if (_DestroyFile(curPageID) != OK) return FAIL;
+				s = index->GetNext(curRid, key, curPageID);
+			}
+		}
+
+		FREEPAGE(pageID);
+		break;
+
+	case LEAF_NODE:
+		FREEPAGE(pageID);
+		break;
+	default:		
+		assert (0);
+	}
+
+	return OK;
 }
 
 //-------------------------------------------------------------------

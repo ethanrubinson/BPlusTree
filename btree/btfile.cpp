@@ -118,6 +118,7 @@ Status BTreeFile::DestroyFile ()
 
 	FREEPAGE(headerID);
 	headerID = INVALID_PAGE;
+	header = NULL;
 
 	if (MINIBASE_DB->DeleteFileEntry(dbname) != OK) {
 		debugPrint("[ERROR] MINIBASE_DB->DeleteFileEntry failed in BTreeFile::DestroyFile()");
@@ -183,8 +184,51 @@ Status BTreeFile::_DestroyFile (PageID pageID)
 //-------------------------------------------------------------------
 Status BTreeFile::Insert (const char *key, const RecordID rid)
 {
-	//TODO: add your code here
-	return FAIL;
+	RecordID newRecordID;
+
+	if (header->GetRootPageID() == INVALID_PAGE) {
+		// There is no root page, we need to make one
+		PageID newPageID;
+		Page *newPage;
+
+		NEWPAGE(newPageID, newPage);
+
+		BTLeafPage *newLeafPage = (BTLeafPage *) newPage;
+		newLeafPage->Init(newPageID);
+		newLeafPage->SetType(LEAF_NODE);
+
+		if (newLeafPage->Insert(key, rid, newRecordID) != OK) {
+			FREEPAGE(newPageID);
+			return FAIL;
+		}
+
+		header->SetRootPageID(newPageID);
+
+		UNPIN(newPageID, DIRTY);
+	}
+	else {
+		// A root page exists
+		PageID rootID = header->GetRootPageID();
+		SortedPage *rootPage;
+		PIN(rootID, rootPage);
+
+		// {MIDPOINT CHECK ONLY} Check to ensure that it is a LEAF_NODE and that it has enough room
+		if (rootPage->GetType() != LEAF_NODE || rootPage->AvailableSpace() < GetKeyDataLength(key,LEAF_NODE)) {
+			UNPIN(rootID, CLEAN);
+			return FAIL;
+		}
+
+		BTLeafPage *curPage = (BTLeafPage *) rootPage;
+		
+		if (curPage->Insert(key, rid, newRecordID) != OK) {
+			UNPIN(rootID, CLEAN);
+			return FAIL;
+		}
+
+		UNPIN (rootID, DIRTY);
+	}
+
+	return OK;
 }
 
 
@@ -202,8 +246,36 @@ Status BTreeFile::Insert (const char *key, const RecordID rid)
 
 Status BTreeFile::Delete (const char *key, const RecordID rid)
 {
-	//TODO: add your code here
-	return FAIL;
+	if (header->GetRootPageID() == INVALID_PAGE) return FAIL;
+		
+	// A root page exists
+	PageID rootID = header->GetRootPageID();
+	SortedPage *rootPage;
+	PIN(rootID, rootPage);
+
+	// {MIDPOINT CHECK ONLY} Check to ensure that it is a LEAF_NODE
+	if (rootPage->GetType() != LEAF_NODE) {
+		UNPIN(rootID, CLEAN);
+		return FAIL;
+	}
+
+	BTLeafPage *curPage = (BTLeafPage *) rootPage;
+		
+	if (curPage->Delete(key,rid) != OK) {
+		UNPIN(rootID, CLEAN);
+		return FAIL;
+	}
+
+	// If the root page is now empty we need to delete it
+	if (curPage->IsEmpty()){
+		FREEPAGE(rootID);
+		header->SetRootPageID(INVALID_PAGE);
+	}
+	else {
+		UNPIN (rootID, DIRTY);
+	}
+
+	return OK;
 }
 
 

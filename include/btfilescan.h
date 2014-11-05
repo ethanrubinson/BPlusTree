@@ -16,7 +16,16 @@ public:
 	~BTreeFileScan();	
 
 private:
-	// You may add members and methods here.
+	void Init(const char *lowKey, const char *highKey, PageID leftmostLeafPageID);
+	const char *lowKey;
+	const char *highKey;
+	PageID leftmostLeafID;
+
+	PageID curPageID;
+	RecordID curRid;
+	
+	bool scanStarted;
+	bool scanFinished;
 };
 
 #endif

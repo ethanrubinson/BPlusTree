@@ -197,6 +197,7 @@ Status BTreeFile::Insert (const char *key, const RecordID rid)
 		newLeafPage->Init(newPageID);
 		newLeafPage->SetType(LEAF_NODE);
 
+		// std::cout << "Inserting on pageNo=" << newLeafPage->PageNo() << " a record with rid=" << rid << " and key=" << key << std::endl;
 		if (newLeafPage->Insert(key, rid, newRecordID) != OK) {
 			FREEPAGE(newPageID);
 			return FAIL;
@@ -220,6 +221,7 @@ Status BTreeFile::Insert (const char *key, const RecordID rid)
 
 		BTLeafPage *curPage = (BTLeafPage *) rootPage;
 		
+		// std::cout << "Inserting on pageNo=" << curPage->PageNo() << " a record with rid=" << rid << " and key=" << key << std::endl;
 		if (curPage->Insert(key, rid, newRecordID) != OK) {
 			UNPIN(rootID, CLEAN);
 			return FAIL;
@@ -255,13 +257,16 @@ Status BTreeFile::Delete (const char *key, const RecordID rid)
 
 	// {MIDPOINT CHECK ONLY} Check to ensure that it is a LEAF_NODE
 	if (rootPage->GetType() != LEAF_NODE) {
+		std::cout << "Delete failed since the root page was not a Leaf Node" << std::endl;
 		UNPIN(rootID, CLEAN);
 		return FAIL;
 	}
 
 	BTLeafPage *curPage = (BTLeafPage *) rootPage;
-		
+	// std::cout << "Page to delete from has pageNo: " << curPage->PageNo() << std::endl;
+	// std::cout <<  "Trying to delete thing with key= " << key << " and rid =" << rid << std::endl;
 	if (curPage->Delete(key,rid) != OK) {
+		//std::cout << "Delete failed for thing with key= " << key << std::endl;
 		UNPIN(rootID, CLEAN);
 		return FAIL;
 	}
@@ -301,8 +306,11 @@ Status BTreeFile::Delete (const char *key, const RecordID rid)
 
 IndexFileScan *BTreeFile::OpenScan (const char *lowKey, const char *highKey)
 {
-	//TODO: add your code here
-	return NULL;
+	
+	BTreeFileScan *newScan = new BTreeFileScan();
+	newScan->Init(lowKey, highKey, header->GetRootPageID());
+	
+	return newScan;
 }
 
 

@@ -173,6 +173,195 @@ Status BTreeFile::_DestroyFile (PageID pageID)
 }
 
 //-------------------------------------------------------------------
+// BTreeFile::SplitLeafNode
+//
+// Input   : key - pointer to the value of the key to be inserted.
+//           rid - RecordID of the record to be inserted.
+//			 fullPage - pointer to the page that needs to be split
+// Output  : newPageID - ID of the newly created page
+//			 newPageFirstKey - pointer to the value of the first key on the new page
+// Return  : OK if successful, FAIL otherwise.
+// Purpose : Split a leafNode into two nodes 
+//-------------------------------------------------------------------
+Status BTreeFile::SplitLeafNode(const char *key, const RecordID rid, BTLeafPage *fullPage, PageID &newPageID, char *&newPageFirstKey) {
+	
+	// Create and initialize the new leaf node
+	Page *newPage;
+	NEWPAGE(newPageID, newPage);
+	BTLeafPage *newLeafPage = (BTLeafPage *) newPage;
+	newLeafPage->Init(newPageID);
+	newLeafPage->SetType(LEAF_NODE);
+
+	// If the full page of the full is pointing to another valid leaf page: Set that page's prev-pointer to the new page
+	PageID nextPageID = fullPage->GetNextPage();
+	if (nextPageID != INVALID_PAGE) {
+		Page *nextPage;
+		PIN(nextPageID, nextPage);
+		BTLeafPage *nextLeafPage = (BTLeafPage *) nextPage;
+		nextLeafPage->SetPrevPage(newPageID);
+		UNPIN(nextPageID, DIRTY);
+	}
+
+	// Link the new pages together in the B+ tree
+    newLeafPage->SetNextPage(nextPageID);
+	newLeafPage->SetPrevPage(fullPage->PageNo());
+    fullPage->SetNextPage(newPageID);
+
+
+	// Move all the records from the old page to the new page
+	while (true) {
+		KeyType movedKey;
+		RecordID movedVal, firstRid, insertedRid;
+		Status s = fullPage->GetFirst(firstRid, movedKey, movedVal);
+		if (s == DONE) break;
+		if (newLeafPage->Insert(movedKey, movedVal, insertedRid) != OK) {
+			std::cerr << "Moving records failed on insert while splitting leaf node num=" << fullPage->PageNo() << std::endl;
+			UNPIN(newPageID, DIRTY);
+			return FAIL;
+		}
+		if (fullPage->DeleteRecord(firstRid) != OK) {
+			std::cerr << "Moving records failed on delete while splitting leaf node num=" << fullPage->PageNo() << std::endl;
+			UNPIN(newPageID, DIRTY);
+			return FAIL;
+		}
+	}
+
+	// Move the items back from the new page to the old page until the space is relatively equal
+	// If we are able to insert our new value at this point do so
+	bool didInsert = false;
+	KeyType curKey;
+	RecordID curRid, curVal, insertedRid;
+	newLeafPage->GetFirst(curRid, curKey, curVal);
+	while (fullPage->AvailableSpace() > newLeafPage->AvailableSpace()) {
+		// Check if the key we are currently on is bigger than the one we are trying to insert
+		// If so, insert our new value into the first (previously full) page
+		if(!didInsert && KeyCmp(curKey,key) > 0){
+			if (fullPage->Insert(key, rid, insertedRid) != OK){
+				UNPIN(newPageID, DIRTY);
+				return FAIL;
+			}
+			didInsert = true;
+		}
+		else {
+			if (fullPage->Insert(curKey,curVal,insertedRid) != OK){
+				UNPIN(newPageID, DIRTY);
+				return FAIL;
+			}
+			if (newLeafPage->DeleteRecord(curRid) != OK){
+				UNPIN(newPageID, DIRTY);
+				return FAIL;
+			}
+			newLeafPage->GetNext(curRid, curKey, curVal);
+		}
+	}
+
+	// If we have not inserted our new value yet, insert it into the newly created page as it has more space now
+	if (!didInsert) {
+		if (newLeafPage->Insert(key, rid, insertedRid) != OK){
+			UNPIN(newPageID, DIRTY);
+			return FAIL;
+		}
+	}
+
+	// Set the output: The first key of the new page
+	newLeafPage->GetFirst(curRid, newPageFirstKey, curVal);
+
+	UNPIN(newPageID, DIRTY);
+
+	return OK;
+}
+
+//-------------------------------------------------------------------
+// BTreeFile::SplitIndexNode
+//
+// Input   : key - pointer to the value of the key to be inserted.
+//           rid - PageID of the record to be inserted.
+//			 fullPage - pointer to the page that needs to be split
+// Output  : newPageID - ID of the newly created page
+//			 newPageFirstKey - pointer to the value of the extra key to be added to the indexnode one level up
+// Return  : OK if successful, FAIL otherwise.
+// Purpose : Split an indexnode into two nodes 
+//-------------------------------------------------------------------
+Status BTreeFile::SplitIndexNode(const char *key, const PageID pid, BTIndexPage *fullPage, PageID &newPageID, char *&newPageFirstKey) {
+	
+	// Create and initialize the new index node
+	Page *newPage;
+	NEWPAGE(newPageID, newPage);
+	BTIndexPage *newIndexPage = (BTIndexPage *) newPage;
+	newIndexPage->Init(newPageID);
+	newIndexPage->SetType(INDEX_NODE);
+
+
+	// Move all the records from the old page to the new page
+	while (true) {
+		KeyType movedKey;
+		RecordID firstRid, insertedRid;
+		PageID movedVal;
+		Status s = fullPage->GetFirst(firstRid, movedKey, movedVal);
+		if (s == DONE) break;
+		if (newIndexPage->Insert(movedKey, movedVal, insertedRid) != OK) {
+			std::cerr << "Moving records failed on insert while splitting index node num=" << fullPage->PageNo() << std::endl;
+			UNPIN(newPageID, DIRTY);
+			return FAIL;
+		}
+		if (fullPage->DeleteRecord(firstRid) != OK) {
+			std::cerr << "Moving records failed on delete while splitting index node num=" << fullPage->PageNo() << std::endl;
+			UNPIN(newPageID, DIRTY);
+			return FAIL;
+		}
+	}
+
+	// Move the items back from the new page to the old page until the space is relatively equal
+	// If we are able to insert our new value at this point do so
+	bool didInsert = false;
+	KeyType curKey;
+	RecordID curRid, insertedRid;
+	PageID curVal;
+	newIndexPage->GetFirst(curRid, curKey, curVal);
+	while (fullPage->AvailableSpace() > newIndexPage->AvailableSpace()) {
+		// Check if the key we are currently on is bigger than the one we are trying to insert
+		// If so, insert our new value into the first (previously full) page
+		if(!didInsert && KeyCmp(curKey,key) > 0){
+			if (fullPage->Insert(key, pid, insertedRid) != OK){
+				UNPIN(newPageID, DIRTY);
+				return FAIL;
+			}
+			didInsert = true;
+		}
+		else {
+			if (fullPage->Insert(curKey,curVal,insertedRid) != OK){
+				UNPIN(newPageID, DIRTY);
+				return FAIL;
+			}
+			if (newIndexPage->DeleteRecord(curRid) != OK){
+				UNPIN(newPageID, DIRTY);
+				return FAIL;
+			}
+			newIndexPage->GetNext(curRid, curKey, curVal);
+		}
+	}
+
+	// If we have not inserted our new value yet, insert it into the newly created page as it has more space now
+	if (!didInsert) {
+		if (newIndexPage->Insert(key, pid, insertedRid) != OK){
+			UNPIN(newPageID, DIRTY);
+			return FAIL;
+		}
+	}
+
+	// Set the output: The first key of the new page (the duplicate)
+	newIndexPage->GetFirst(curRid, newPageFirstKey, curVal);
+
+	// Set the left link of the new page and delete the duplicate key
+	newIndexPage->SetLeftLink(curVal);
+	newIndexPage->DeleteRecord(curRid);
+
+	UNPIN(newPageID, DIRTY);
+
+	return OK;
+}
+
+//-------------------------------------------------------------------
 // BTreeFile::Insert
 //
 // Input   : key - pointer to the value of the key to be inserted.

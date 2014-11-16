@@ -82,8 +82,8 @@ private:
 	Status BTreeFile::__DumpStatistics(PageID);
 
 	Status BTreeFile::_DestroyFile(PageID);
-	Status BTreeFile::SplitLeafNode(const char *key, const RecordID rid, BTLeafPage *fullPage, PageID &newPageID, char *&newPageFirstKey);
-	Status BTreeFile::SplitIndexNode(const char *key, const PageID pid, BTIndexPage *fullPage, PageID &newPageID, char *&newPageFirstKey);
+	Status BTreeFile::SplitLeafNode(const char *key, const RecordID rid, BTLeafPage *fullPage, PageID &newPageID, KeyType &newPageFirstKey);
+	Status BTreeFile::SplitIndexNode(const char *key, const PageID pid, BTIndexPage *fullPage, PageID &newPageID, KeyType &newPageFirstKey);
 
 	void BTreeFile::debugPrint(const char *msg);
 };

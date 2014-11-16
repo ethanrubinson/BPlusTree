@@ -15,7 +15,7 @@
 
 BTreeFileScan::~BTreeFileScan ()
 {
-	//TODO: add your code here
+	// No cleanup needed
 }
 
 void BTreeFileScan::Init(const char *low, const char *high, PageID leftmostLeafPageID){
@@ -26,13 +26,7 @@ void BTreeFileScan::Init(const char *low, const char *high, PageID leftmostLeafP
 	scanStarted = false;
 	scanFinished = false;
 
-	/*if (lowKey == NULL) cout << "lowKey is NULL" << std::endl;
-	else cout << "lowKey is " << lowKey << std::endl;
-
-	if (highKey == NULL) cout << "highKey is NULL" << std::endl;
-	else cout << "highKey is " << highKey << std::endl;*/
-
-	if (leftmostLeafPageID == -1) scanFinished = true;
+	if (leftmostLeafPageID == INVALID_PAGE) scanFinished = true;
 }
 
 
@@ -54,14 +48,14 @@ Status BTreeFileScan::GetNext (RecordID & rid, char* keyPtr)
 	BTLeafPage *curPage;
 
 	if(!scanStarted) {
-		// Find the record where we are supposed to start {MIDPOINT CHECK ONLY}
+		// Find the record on the leftmost leaf page where we are supposed to start
 		curPageID = leftmostLeafID;
 
 		PIN(curPageID, curPage);
 		
 		curPage->GetFirst(curRid,keyPtr,dataRid);
 		
-		// Case where the lowKey is NULL
+		// Case where the lowKey is NULL (We want to start at the first spot)
 		if (lowKey == NULL) {
 			if (highKey == NULL || KeyCmp(keyPtr,highKey) <= 0) {
 				rid = dataRid;
@@ -112,27 +106,41 @@ Status BTreeFileScan::GetNext (RecordID & rid, char* keyPtr)
 				return DONE;
 			}	
 		}
-
-
 	}
+	// The scan has allready been initialized
 	else {
+		// PIN our current page
 		PIN(curPageID, curPage);
+		Status s = curPage->GetNext(curRid, keyPtr, dataRid);
 
-		if (curPage->GetNext(curRid,keyPtr,dataRid) == DONE) {
-			scanFinished = true;
+		// See if we have more records on that page, if not we need to get the next page
+		while (s == DONE && curPage->GetNextPage() != INVALID_PAGE) {
+			PageID nextPageID = curPage->GetNextPage();
 			UNPIN(curPageID, CLEAN);
-			return DONE;
+			curPageID = nextPageID;
+
+			PIN(curPageID, curPage);
+			s = curPage->GetFirst(curRid, keyPtr, dataRid);
 		}
 
-		if (highKey == NULL || KeyCmp(keyPtr,highKey) <= 0) {
-			rid = dataRid;
-			UNPIN(curPageID, CLEAN);
-			return OK;
+		// Check if we are done the scan
+		if (s == DONE && curPage->GetNextPage() == INVALID_PAGE) {
+				UNPIN(curPageID, CLEAN);
+				scanFinished = true;
+				return DONE;
 		}
-		else {
-			scanFinished = true;
-			UNPIN(curPageID, CLEAN);
-			return DONE;
+		// If we are not done, curRid, keyPtr, and dataRid are all propperly set
+		else{
+			if (highKey == NULL || KeyCmp(keyPtr,highKey) <= 0) {
+				rid = dataRid;
+				UNPIN(curPageID, CLEAN);
+				return OK;
+			}
+			else {
+				scanFinished = true;
+				UNPIN(curPageID, CLEAN);
+				return DONE;
+			}
 		}
 
 	}

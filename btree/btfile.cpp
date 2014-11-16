@@ -208,7 +208,7 @@ Status BTreeFile::SplitLeafNode(const char *key, const RecordID rid, BTLeafPage 
 	newLeafPage->SetPrevPage(fullPage->PageNo());
     fullPage->SetNextPage(newPageID);
 
-	std::cout << "New pages linked together successfully" << std::endl;
+	//std::cout << "New pages linked together successfully" << std::endl;
 
 	// Move all the records from the old page to the new page
 	while (true) {
@@ -230,9 +230,9 @@ Status BTreeFile::SplitLeafNode(const char *key, const RecordID rid, BTLeafPage 
 		//std::cout << "Copied item with key=" << movedKey << std::endl;
 	}
 
-	std::cout << "Old items copied over to the new page" << std::endl;
+	//std::cout << "Old items copied over to the new page" << std::endl;
 
-	std::cout << "Want to redistribute and insert item with key=" << key << "rid=" << rid << std::endl;
+	//std::cout << "Want to redistribute and insert item with key=" << key << "rid=" << rid << std::endl;
 
 	// Move the items back from the new page to the old page until the space is relatively equal
 	// If we are able to insert our new value at this point do so
@@ -268,12 +268,12 @@ Status BTreeFile::SplitLeafNode(const char *key, const RecordID rid, BTLeafPage 
 
 	// If we have not inserted our new value yet, insert it into the newly created page as it has more space now
 	if (!didInsert) {
-		std::cout << "We didn't insert our new value yet do so: key=" << key << " rid=" << rid << std::endl;
+		//std::cout << "We didn't insert our new value yet do so: key=" << key << " rid=" << rid << std::endl;
 		if (newLeafPage->Insert(key, rid, insertedRid) != OK){
 			UNPIN(newPageID, DIRTY);
 			return FAIL;
 		}
-		std::cout << "Inserted into rid" << insertedRid << std::endl;
+		//std::cout << "Inserted into rid" << insertedRid << std::endl;
 	}
 
 	// Set the output: The first key of the new page
@@ -433,12 +433,12 @@ Status BTreeFile::Insert (const char *key, const RecordID rid)
 				PageID newPageID;
 				KeyType newPageFirstKey;
 
-				std::cout << "Need to split root node" <<std::endl;
+				//std::cout << "Need to split root node" <<std::endl;
 				if (SplitLeafNode(key, rid, rootleaf, newPageID, newPageFirstKey) != OK){
 					UNPIN (rootID, CLEAN);
 					return FAIL;
 				}
-				std::cout << "Done splitting root node" <<std::endl;
+				//std::cout << "Done splitting root node" <<std::endl;
 
 				PageID newIndexPageID;
 				Page *newIndexPage;
@@ -656,7 +656,23 @@ IndexFileScan *BTreeFile::OpenScan (const char *lowKey, const char *highKey)
 {
 	
 	BTreeFileScan *newScan = new BTreeFileScan();
-	newScan->Init(lowKey, highKey, header->GetRootPageID());
+
+	const char *searchKey;
+	if (lowKey == NULL) {
+		searchKey = "";
+	}
+	else {
+		searchKey = lowKey;
+	}
+
+	PageID leftmostPageID;
+
+	if (Search(searchKey,leftmostPageID) != OK) {
+		leftmostPageID = INVALID_PAGE;
+	}
+
+	newScan->Init(lowKey, highKey, leftmostPageID);
+
 	return newScan;
 }
 

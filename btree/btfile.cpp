@@ -596,6 +596,10 @@ Status BTreeFile::Insert (const char *key, const RecordID rid)
 
 Status BTreeFile::Delete (const char *key, const RecordID rid)
 {
+	//std::cout << "Start delete for key=" <<key << std::endl;
+
+	//if (rid.pageNo == -1) return OK;
+
 	if (header->GetRootPageID() == INVALID_PAGE) return FAIL;
 		
 	// A root page exists
@@ -603,31 +607,106 @@ Status BTreeFile::Delete (const char *key, const RecordID rid)
 	SortedPage *rootPage;
 	PIN(rootID, rootPage);
 
-	// {MIDPOINT CHECK ONLY} Check to ensure that it is a LEAF_NODE
-	if (rootPage->GetType() != LEAF_NODE) {
-		std::cout << "Delete failed since the root page was not a Leaf Node" << std::endl;
-		UNPIN(rootID, CLEAN);
-		return FAIL;
+	// Check if the root is a leaf node
+	if (rootPage->GetType() == LEAF_NODE) {
+		BTLeafPage *curPage = (BTLeafPage *) rootPage;
+		// std::cout << "Page to delete from has pageNo: " << curPage->PageNo() << std::endl;
+		// std::cout <<  "Trying to delete thing with key= " << key << " and rid =" << rid << std::endl;
+		if (curPage->Delete(key,rid) != OK) {
+			//std::cout << "Delete failed for thing with key= " << key << std::endl;
+			UNPIN(rootID, CLEAN);
+			return FAIL;
+		}
+
+		// If the root page is now empty we need to delete it
+		if (curPage->IsEmpty()){
+			FREEPAGE(rootID);
+			header->SetRootPageID(INVALID_PAGE);
+		}
+		else {
+			UNPIN (rootID, DIRTY);
+		}
+	}
+	else{
+		// The root is not a leaf node. We need to iterate down the tree
+        SortedPage* curPage = rootPage;
+		PageID curIndexID;
+		PageID nextPageID;
+		Status s;
+
+		RecordID curRecordID;
+		KeyType curKey;
+		PageID curPageID;
+
+		stack<PageID> indexIDStack;
+        while (curPage->GetType() == INDEX_NODE) {
+			BTIndexPage *curIndexPage = (BTIndexPage *) curPage;
+			curIndexID = curIndexPage->PageNo();
+
+			indexIDStack.push(curIndexID);
+
+			nextPageID = curIndexPage->GetLeftLink();
+			s = curIndexPage->GetFirst(curRecordID, curKey, curPageID);
+			// while our key is > than the curKey, continue searching the index for the right path to take
+			while(s != DONE && KeyCmp(key, curKey) >= 0) {
+				nextPageID = curPageID;
+				s = curIndexPage->GetNext(curRecordID, curKey, curPageID);
+			}
+			
+			UNPIN(curIndexID, CLEAN);
+			PIN(nextPageID, curPage);
+        }
+
+		BTLeafPage *curLeafPage = (BTLeafPage *) curPage;
+		PageID curLeafID = curLeafPage->PageNo();
+		//std::cout << "HERE2" <<std::endl;
+		// Check if this is the first key on the page (in this case its entry may need to be deleted from the index nodes as well)
+		RecordID curVal;
+		if (curLeafPage->GetFirst(curRecordID, curKey, curVal) != OK) {
+			std::cout << "GetFirst failed for pageNo" << curLeafPage->PageNo() << std::endl;
+			UNPIN(curLeafID, CLEAN);
+			return FAIL;
+		}
+		//std::cout << "HERE3" <<std::endl;
+		if (false && KeyCmp(curKey, key) == 0 && curVal == rid) {
+			// It is the first one
+			// TODO: IMPLEMENT
+
+			if (curLeafPage->Delete(key,rid) != OK) {
+				//std::cout << "Delete failed for thing with key= " << key << std::endl;
+				UNPIN(curLeafID, CLEAN);
+				return FAIL;
+			}
+
+			// If the page is now empty we need to delete it (and its entry) as long as it is not the leftmost link of an index node
+			if (curPage->IsEmpty()){
+				if (curLeafPage->GetPrevPage() != INVALID_PAGE){
+				
+				}
+				else{
+					// This is the leftmost page in the B+ tree, there is nothing to delete from the index
+				}
+				FREEPAGE(curLeafID);
+			}
+			else {
+				UNPIN (rootID, DIRTY);
+			}
+
+			
+		}
+		else {
+			// It is not the first one, simply delete it from the page
+			if (curLeafPage->Delete(key,rid) != OK) {
+				std::cout << "Delete failed for thing with key= " << key << std::endl;
+				UNPIN(curLeafID, CLEAN);
+				return FAIL;
+			}
+			UNPIN (curLeafID, DIRTY);
+		}
 	}
 
-	BTLeafPage *curPage = (BTLeafPage *) rootPage;
-	// std::cout << "Page to delete from has pageNo: " << curPage->PageNo() << std::endl;
-	// std::cout <<  "Trying to delete thing with key= " << key << " and rid =" << rid << std::endl;
-	if (curPage->Delete(key,rid) != OK) {
-		//std::cout << "Delete failed for thing with key= " << key << std::endl;
-		UNPIN(rootID, CLEAN);
-		return FAIL;
-	}
 
-	// If the root page is now empty we need to delete it
-	if (curPage->IsEmpty()){
-		FREEPAGE(rootID);
-		header->SetRootPageID(INVALID_PAGE);
-	}
-	else {
-		UNPIN (rootID, DIRTY);
-	}
-
+	//std::cout << "Done delete for key=" <<key << std::endl;
 	return OK;
 }
 

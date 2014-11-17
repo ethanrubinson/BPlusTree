@@ -53,8 +53,21 @@ Status BTreeFileScan::GetNext (RecordID & rid, char* keyPtr)
 
 		PIN(curPageID, curPage);
 		
-		curPage->GetFirst(curRid,keyPtr,dataRid);
+		// Find the first non-empty page
+		while (curPage->GetFirst(curRid,keyPtr,dataRid) != OK) {
+			PageID nextPageID = curPage->GetNextPage();
+			UNPIN(curPageID, CLEAN);
+
+			if (nextPageID == INVALID_PAGE) {
+				scanFinished = true;
+				return DONE;
+			}
+			
+			curPageID = nextPageID;
+			PIN(curPageID, curPage);
+		}
 		
+
 		// Case where the lowKey is NULL (We want to start at the first spot)
 		if (lowKey == NULL) {
 			if (highKey == NULL || KeyCmp(keyPtr,highKey) <= 0) {

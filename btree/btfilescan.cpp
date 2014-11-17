@@ -18,6 +18,17 @@ BTreeFileScan::~BTreeFileScan ()
 	// No cleanup needed
 }
 
+
+//-------------------------------------------------------------------
+// BTreeFileScan::Init
+//
+// Input   : low - lowest key to scan from
+//		   : high - highest key to scan to
+//		   : leftmostLeafPageID - pageID that the low key would be on (page may be empty)
+// Output  : None
+// Purpose : Initialize a B+ tree scan.
+//-------------------------------------------------------------------
+
 void BTreeFileScan::Init(const char *low, const char *high, PageID leftmostLeafPageID){
 	lowKey = low;
 	highKey = high;
